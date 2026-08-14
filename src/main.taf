@@ -1,0 +1,2 @@
+<taf-app:container:ghcr.io/taffish/squidpy:1.8.3-r1>
+python ::*ARGV*::
