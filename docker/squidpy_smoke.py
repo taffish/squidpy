@@ -10,74 +10,32 @@ from pathlib import Path
 
 
 def identity() -> None:
-    import anndata
-    import dask.array
-    import dask_image
-    import h5py
-    import imagecodecs
-    import leidenalg
-    import matplotlib
-    import networkx
-    import numba
-    import numpy
-    import pandas
-    import scanpy
-    import scipy
-    import skimage
-    import sklearn
-    import spatialdata
-    import spatialdata_plot
-    import spatialleiden
+    from importlib import import_module
+    from importlib.util import find_spec
+
+    for module in ("anndata","dask.array","dask_image","h5py","imagecodecs","leidenalg",
+                   "matplotlib","networkx","numba","numpy","pandas","scanpy","scipy",
+                   "skimage","sklearn","spatialdata","spatialdata_plot","spatialleiden",
+                   "squidpy","statsmodels","tifffile","xarray","zarr","numba_progress",
+                   "mahotas","centrosome._lapjv","cp_measure.featurizer"):
+        import_module(module)
     import squidpy
-    import statsmodels
-    import tifffile
-    import xarray
-    import zarr
-
-    del (
-        anndata,
-        dask.array,
-        dask_image,
-        h5py,
-        imagecodecs,
-        leidenalg,
-        matplotlib,
-        networkx,
-        numba,
-        numpy,
-        pandas,
-        scanpy,
-        scipy,
-        skimage,
-        sklearn,
-        spatialdata,
-        spatialdata_plot,
-        spatialleiden,
-        statsmodels,
-        tifffile,
-        xarray,
-        zarr,
-    )
-
-    assert squidpy.__version__ == "1.8.3"
+    assert squidpy.__version__ == metadata.version("squidpy") == "1.8.4"
     assert metadata.version("omnipath") == "1.0.12"
-    dist = metadata.distribution("squidpy")
-    assert not list(dist.entry_points), "Squidpy 1.8.3 unexpectedly gained an entry point"
-    registry = resources.files("squidpy.datasets").joinpath("datasets.yaml").read_text()
-    assert "https://exampledata.scverse.org/squidpy/" in registry
+    assert metadata.version("centrosome") == "1.3.4+taffish.1"
+    assert metadata.version("Pillow") == "13.0.0"
+    assert not list(metadata.distribution("squidpy").entry_points)
+    assert find_spec("napari") is None
+    registry = resources.files("squidpy.datasets").joinpath("datasets.yaml").read_bytes()
+    import hashlib
+    assert hashlib.sha256(registry).hexdigest() == "24675c06910cb9f4cfd8549fa31311f1d05c5a61fe9f32f4dc6c0ac8d531ba4d"
     try:
-        import squidpy.pl._interactive  # noqa: F401
+        import_module("squidpy.pl._interactive")
     except ImportError as exc:
         assert "napari-spatialdata" in str(exc)
     else:
-        raise AssertionError("removed Squidpy interactive module unexpectedly imported")
-
-    print(f"squidpy={squidpy.__version__}")
-    print(f"scanpy={metadata.version('scanpy')}")
-    print(f"spatialdata={metadata.version('spatialdata')}")
-    print(f"spatialdata-plot={metadata.version('spatialdata-plot')}")
-    print(f"spatialleiden={metadata.version('spatialleiden')}")
-    print("interactive=napari-spatialdata replacement required")
+        raise AssertionError("unexpected interactive module")
+    print("squidpy=1.8.4")
 
 
 def graph(outdir: Path) -> None:
@@ -109,11 +67,18 @@ def graph(outdir: Path) -> None:
     sq.gr.spatial_neighbors_grid(adata, n_neighs=4, n_rings=1)
     assert adata.obsp["spatial_connectivities"].nnz > 0
     sq.gr.nhood_enrichment(
-        adata, cluster_key="region", n_perms=12, seed=0, n_jobs=1
+        adata, cluster_key="region", n_perms=12, rng=0, n_jobs=1, show_progress_bar=False
     )
+    params = dict(cluster_key="region", n_perms=7, rng=31, normalization="conditional",
+                  copy=True, show_progress_bar=False)
+    one = sq.gr.nhood_enrichment(adata, n_jobs=1, **params)
+    two = sq.gr.nhood_enrichment(adata, n_jobs=2, **params)
+    for key in ("counts", "zscore", "conditional_ratio"):
+        np.testing.assert_allclose(getattr(one,key), getattr(two,key), equal_nan=True)
+    assert one.conditional_ratio is not None
     moran = sq.gr.spatial_autocorr(
         adata, mode="moran", genes=["gene_x", "gene_y"], n_perms=12,
-        seed=0, n_jobs=1, copy=True
+        rng=0, n_jobs=1, copy=True
     )
     centrality = sq.gr.centrality_scores(adata, cluster_key="region", copy=True)
 
@@ -176,7 +141,7 @@ def ligrec(outdir: Path) -> None:
         interactions=interactions,
         use_raw=False,
         n_perms=8,
-        seed=0,
+        rng=0,
         n_jobs=1,
         threshold=0,
         copy=True,
@@ -220,7 +185,8 @@ def image(outdir: Path) -> None:
     assert segmented is not None and "segmented_watershed" in segmented
 
     if not bool(int(__import__("os").environ.get("SQUIDPY_BUILDTIME", "0"))):
-        processed.show(layer="image_smooth", save=outdir / "image.png", dpi=90)
+        # Squidpy resolves relative plot paths under scanpy.settings.figdir.
+        processed.show(layer="image_smooth", save=(outdir / "image.png").resolve(), dpi=90)
         assert (outdir / "image.png").stat().st_size > 0
         import warnings
 
@@ -240,20 +206,92 @@ def image(outdir: Path) -> None:
     print("image=ok")
 
 
+def features(outdir: Path) -> None:
+    import numpy as np
+    import xarray as xr
+    import squidpy as sq
+    from spatialdata import SpatialData
+    from spatialdata.models import Image2DModel, Labels2DModel
+    from PIL import Image
+    from centrosome.bg_compensate import bg_compensate
+
+    outdir.mkdir(parents=True, exist_ok=False)
+    y, x = np.mgrid[:64, :64]
+    labels = np.zeros((64, 64), dtype=np.int32)
+    labels[8:24, 8:22] = 1
+    labels[34:56, 35:55] = 2
+    plane = ((x + 2 * y + (labels > 0) * 55) % 250).astype(np.uint8)
+    sdata = SpatialData(images={"img":Image2DModel.parse(xr.DataArray(plane[None],dims=("c","y","x")))},
+                       labels={"lbl":Labels2DModel.parse(xr.DataArray(labels,dims=("y","x")))})
+    result = sq.experimental.im.calculate_image_features(
+        sdata, image_key="img", labels_key="lbl", features=["cp_measure:intensity","skimage:morphology:area"],
+        inplace=False, drop_constant_features=False)
+    assert result.n_obs == 2 and any("Intensity_MeanIntensity" in v for v in result.var_names)
+    result.write_h5ad(outdir / "features.h5ad")
+    # Exercise the actual grayscale reader and unchanged background fitter.
+    # Reconstruction checks the original 8-bit and 16-bit normalization semantics.
+    import tifffile
+    for depth, pixels, divisor in [("8", plane, 1), ("12", plane.astype(np.uint16)*15, 4095),
+                                 ("16", plane.astype(np.uint16)*257, 65535),
+                                 ("16be", (plane.astype(np.uint16)*257).astype(">u2"), 65535),
+                                 ("16tag", plane.astype(np.uint16)*7, 2047)]:
+        dest = outdir / f"gray{depth}.tiff"
+        tifffile.imwrite(dest, pixels, byteorder=">" if depth=="16be" else "<",
+                         extratags=[(281,"H",1,2047,False)] if depth=="16tag" else [])
+        corrected, background = bg_compensate(str(dest), sigma=1, splinepoints=5, scale=1)
+        expected = pixels.astype(np.float32)/divisor
+        reference = outdir / f"float-{depth}.tiff"
+        Image.fromarray(expected).save(reference)
+        reference_pair = bg_compensate(str(reference), sigma=1, splinepoints=5, scale=1)
+        assert corrected.shape == background.shape == pixels.shape
+        assert np.isfinite(corrected).all() and np.isfinite(background).all()
+        np.testing.assert_allclose(corrected, reference_pair[0], rtol=0, atol=1e-5)
+        np.testing.assert_allclose(background, reference_pair[1], rtol=0, atol=1e-5)
+        np.testing.assert_allclose(corrected + background, expected, atol=1e-5)
+    print("features=ok")
+
+
+def resource() -> None:
+    import tempfile
+    import subprocess
+    import squidpy as sq
+    with tempfile.TemporaryDirectory() as work:
+        base=Path(work);lib=base/"lib";lib.mkdir(mode=0o755);lib.chmod(0o755)
+        table=base/"interactions.tsv";table.write_text("source\ttarget\nA\tB\n")
+        terms=base/"NOTICE";terms.write_text("Synthetic fixture made for this smoke; CC0.")
+        recipe=base/"recipe.json"
+        with recipe.open("wb") as out:
+            subprocess.run(["squidpy-data","pin-table","--file",str(table),"--id","tiny",
+                "--url","https://example.invalid/interactions.tsv","--rights-file",str(terms)],stdout=out,check=True)
+        cmd=["squidpy-data","install","--table-recipe",str(recipe),"--source-dir",str(base),"--resource-root",str(lib),"--reserve-mib","0"]
+        subprocess.run(cmd,check=True)
+        assert "already complete" in subprocess.check_output(cmd,text=True)
+        assert (lib/"table.tiny/interactions.tsv").read_bytes()==table.read_bytes()
+        try: sq.datasets.imc()
+        except FileNotFoundError as error: assert "prepared" in str(error)
+        else: raise AssertionError("unexpected implicit dataset acquisition")
+    print("resource=ok")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("identity", "graph", "ligrec", "image"))
+    parser.add_argument("mode", choices=("identity", "graph", "ligrec", "image", "features","resource"))
     parser.add_argument("outdir", nargs="?", type=Path)
     args = parser.parse_args()
     if args.mode == "identity":
         identity()
         return
+    if args.mode == "resource":
+        resource()
+        return
     if args.outdir is None:
-        parser.error("graph and image modes require OUTDIR")
+        parser.error("functional modes require OUTDIR")
     if args.mode == "graph":
         graph(args.outdir)
     elif args.mode == "ligrec":
         ligrec(args.outdir)
+    elif args.mode == "features":
+        features(args.outdir)
     else:
         image(args.outdir)
 

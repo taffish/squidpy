@@ -1,177 +1,88 @@
-# squidpy
+# Squidpy for TAFFISH
 
-`squidpy` packages the official Squidpy 1.8.3 Python environment for TAFFISH.
+Run spatial graph statistics, ligand–receptor permutations and microscopy image analysis with the official [Squidpy 1.8.4 release](https://github.com/scverse/squidpy/releases/tag/v1.8.4). This tool packages Python 3.12, the required dependencies and the official `leiden` extra. There is no upstream `squidpy` executable.
 
-Package identity:
-
-- name: `squidpy`
-- command: `taf-squidpy`
-- kind: `tool`
-- version: `1.8.3-r1`
-- image: `ghcr.io/taffish/squidpy:1.8.3-r1`
-- platforms: native `linux/amd64` and `linux/arm64`
-- app license: Apache-2.0
-- upstream: [scverse/squidpy v1.8.3](https://github.com/scverse/squidpy/releases/tag/v1.8.3)
-
-## Installation
-
-Install the current release from the TAFFISH Hub:
+## Install and run
 
 ```sh
-taf install squidpy 1.8.3-r1
-```
-
-## What This App Packages
-
-Squidpy analyzes spatial molecular data using AnnData/Scanpy objects, spatial
-graphs, spatial statistics, ligand-receptor interactions, microscopy images,
-and static plots. Upstream 1.8.3 has no console entry point, so the thin
-TAFFISH default is `python`; automatic command mode remains available for
-explicit packaged executables.
-
-The image contains the full declared Squidpy runtime dependency closure and
-the complete official `leiden` extra (`leidenalg` and `spatialleiden`). The
-official Squidpy wheel, its pure-Python `docrep` source dependency, the
-dependency constraints, upstream license, source identity, and installed
-requirements are recorded under `/opt/squidpy/share/doc/squidpy/`.
-
-## Scope
-
-This app supports:
-
-- spatial neighbor graphs, neighborhood enrichment, co-occurrence,
-  centrality, autocorrelation, ligand-receptor analysis, and related plots;
-- `ImageContainer` loading, image processing, segmentation, features, TIFF,
-  Zarr, HDF5/AnnData, and static Matplotlib output;
-- Scanpy, SpatialData, spatialdata-plot, and the official SpatialLeiden extra;
-- ordinary Python scripts and packaged command-mode executables.
-
-This app does not bundle datasets, a Jupyter server, napari/Qt, a browser
-service, cloud credentials, or GPU/CUDA libraries.
-
-## Container Contents
-
-- `python` / `python3`: default Python 3.12 analysis runtime.
-- `pip`: package inventory and environment inspection; the environment is
-  otherwise release-pinned and should be treated as immutable.
-- Squidpy 1.8.3, Scanpy 1.12.3, SpatialData 0.8.0,
-  spatialdata-plot 0.4.1, SpatialLeiden 0.4.0, and frozen required packages.
-- DejaVu fonts and a headless Matplotlib `Agg` backend for static plots.
-
-## Usage
-
-Run a Python analysis script in the packaged environment:
-
-```sh
+taf install squidpy 1.8.4-r1
+taf-squidpy --help
 taf-squidpy python analysis.py
-```
-
-Inspect package versions or run a short expression:
-
-```sh
-taf-squidpy python -c '"import squidpy as sq; print(sq.__version__)"'
-taf-squidpy python -m pip list
-```
-
-Use `taf-squidpy -- --help` for the default Python interpreter help. Squidpy
-itself intentionally has no upstream command-line program, so analysis is
-performed through its Python API rather than a `squidpy` executable.
-
-Automatic command mode reconstructs a shell command. Preserve literal quotes
-as part of a path containing spaces:
-
-```sh
 taf-squidpy python "'scripts/spatial analysis.py'"
 ```
 
-A minimal script can build and analyze a spatial graph:
+The working directory is mounted by the wrapper. Automatic command mode reconstructs a shell command: pass literal inner quotes for an argument containing spaces. With a local AnnData object containing coordinates in `obsm["spatial"]`, a script can run entirely offline:
 
 ```python
-import scanpy as sc
+import anndata as ad
 import squidpy as sq
 
-adata = sc.read_h5ad("local-input.h5ad")
+adata = ad.read_h5ad("local-input.h5ad")
 sq.gr.spatial_neighbors_grid(adata, n_neighs=6)
 sq.gr.spatial_autocorr(adata, mode="moran")
 adata.write_h5ad("result.h5ad")
 ```
 
-This form is offline when `local-input.h5ad` and all requested resources are
-already present.
+Use scripts to select H5AD, TIFF, Zarr/SpatialData, tables and output files. Version 1.8.4 adds experimental per-cell features (`sq.experimental.im.calculate_image_features`) and conditional/COZI neighborhood enrichment. Use `rng=` for seeded permutations. `cp_measure`, Scanpy, SpatialData, spatialdata-plot and SpatialLeiden are in the image. Matplotlib uses headless Agg; write PNG/SVG/PDF to the working directory. For a desktop viewer use the separate [TAFFISH SpatialData app](https://github.com/taffish/spatialdata). This package does not start a GUI, Jupyter server or GPU service.
 
-## Inputs and Outputs
+For Squidpy plotting methods that accept `save=`, relative names are placed under `scanpy.settings.figdir`. Pass an absolute path, such as `Path("results/image.png").resolve()`, to select the exact project output location.
 
-Common inputs are Python scripts, AnnData/H5AD matrices with coordinates in
-`adata.obsm["spatial"]`, categorical annotations in `adata.obs`, microscopy
-images such as TIFF, and local Zarr/SpatialData stores. Exact schema and
-coordinate requirements belong to the selected upstream API.
+## Choose a resource
 
-Outputs are selected by the script: modified H5AD or Zarr objects, TIFF/image
-artifacts, PNG/SVG/PDF static plots, TSV/CSV tables, and standard output or
-logs. TAFFISH does not choose an output directory or overwrite policy for an
-arbitrary Python program.
+No datasets, models, database dumps, OmniPath snapshots or credentials are bundled. Your own project files need no managed library. For a reusable example, select a name with `taf-squidpy squidpy-data catalog`; preview `install --dataset NAME --dry-run`. A Visium count/spatial member and its optional `--hires` variant are separate snapshots. Preview lists sources, expected bytes (or why unknown), SHA-256, rights, destination and free-space reserve. Allocate space for both verified transport bytes and the installed copy, plus scratch for analysis and unpacking.
 
-## Interactive Visualization
+The registry is the YAML inside the fixed Squidpy wheel. Only the reviewed [10x Visium fluorescent section 2 dataset](https://www.10xgenomics.com/datasets/adult-mouse-brain-section-2-coronal-stains-dapi-anti-gfap-anti-neu-n-1-standard-1-1-0) and its registered Squidpy derivatives permit managed public fetch: `visium_fluo_adata_crop`, `visium_fluo_adata`, `visium_fluo_image_crop`, and `V1_Adult_Mouse_Brain_Coronal_Section_2`. Retain source attribution under CC BY 4.0. For other entries review the provider's terms (including shared/site use), obtain the named files yourself, and use `--source-dir` with `--rights-file`. A missing upstream digest can only be pinned from authorized local bytes; that digest is not a provider signature. No bulk mirror or redistribution permission is implied.
 
-Squidpy removed its original interactive module upstream in 1.6.1 and now
-directs users to `napari-spatialdata`. This app therefore does not duplicate a
-Qt/noVNC GUI stack or expose a long-running browser service. For interactive
-SpatialData viewing, use the separate `taf-spatialdata spatialdata-gui`
-interface and its documented port, security, and Ctrl-C lifecycle contract.
-Static Squidpy plotting is fully supported here through Matplotlib `Agg`.
+### Install once; consume read-only
 
-## Resources, Networking, and Platform
+Use a dedicated new directory owned by the installer, mode 0755. For a personal installation use `$HOME/.local/share/taffish/datasets/squidpy`. For a system installation the administrator prepares `/usr/local/share/taffish/datasets/squidpy` (or `/opt/taffish/datasets/squidpy`) **once**, using their own authorized container runtime. Ordinary users do not need to install or write to it. Do not chmod a shared parent or an unrelated data directory.
 
-Both declared architectures are native. Numerical threads default to one to
-avoid container oversubscription; scripts may choose their own supported
-parallelism. Large images, graph permutations, Dask computations, and
-materialized Zarr arrays can require substantial RAM, CPU, temporary disk, and
-output storage. No GPU runtime is included.
+The three equivalent preparation commands are shown in `taf-squidpy --help`. Only the installer mounts the library read-write at `/dataset-install`; during installation disable automatic discovery. Subsequent Python processes check the entire selected library before loading it. A read-only bind at `/datasets/squidpy` is required. Explicit `TAFFISH_SQUIDPY_DATASET_PATH` wins, followed by personal, system and /opt; an invalid higher-priority root does not fall through. A valid root symlink resolves to its physical directory; a broken link is an error. To process unrelated local files, set `TAFFISH_SQUIDPY_DATASET_AUTO_MOUNT=0`. For spaces use a quoted manual bind (paths containing a mount delimiter such as a colon are unsuitable):
 
-Docker is the release-test backend. Podman and Apptainer use the same generic
-TAFFISH container contract but have not been separately validated for this
-release; input-path visibility and site policy remain backend responsibilities.
+```sh
+export TAFFISH_SQUIDPY_DATASET_AUTO_MOUNT=0
+LIB="/absolute/path with spaces/squidpy"
+TAFFISH_CONTAINER_BACKEND=docker TAFFISH_DOCKER_RUN_ARGS="-v '$LIB:/datasets/squidpy:ro'" taf-squidpy squidpy-data verify
+TAFFISH_CONTAINER_BACKEND=podman TAFFISH_PODMAN_RUN_ARGS="--userns keep-id -v '$LIB:/datasets/squidpy:ro'" taf-squidpy squidpy-data verify
+TAFFISH_CONTAINER_BACKEND=apptainer TAFFISH_APPTAINER_RUN_ARGS="--bind '$LIB:/datasets/squidpy:ro'" taf-squidpy squidpy-data verify
+unset TAFFISH_SQUIDPY_DATASET_AUTO_MOUNT
+```
 
-Most local analysis is offline-safe. `squidpy.datasets` downloads official
-examples from `exampledata.scverse.org`, and `sq.gr.ligrec` fetches OmniPath
-interactions when no interaction table is provided. Fully offline work must
-stage its input data locally and pass a local interaction DataFrame to
-`sq.gr.ligrec`. Remote object stores likewise need backend network access and
-user-provided credentials.
+Each published member contains its file list, URLs, SHA-256, sizes, rights notice and READY fingerprint. Installation, idempotent reuse and discovery validate all installed members, not just the selected ID. An interruption leaves valid members intact. Repeat the identical command: a private partial can resume on a range-capable HTTPS source or from identical local bytes. A persistent lock filename does not mean a live process holds the kernel lock. On checksum, ownership or conflicting-recipe failure, stop and inspect the named object; do not force replace, delete a lock, or clear the library. Restore the authorized bytes or install in a new dedicated root. Per-user plotting/JIT and archive extraction use private scratch, not the shared install directory.
 
-The multi-stage image removes dependency tests, NumPy/PyArrow development
-headers, static/debug archives, bytecode, resolver caches, and apt indexes in
-their producing layers. The remaining large native wheels implement the
-supported numerical, geospatial, image-codec, Dask, SpatialData, and plotting
-surface; removing them would break advertised upstream functionality.
+### Local ligand–receptor tables
 
-## Boundaries and Troubleshooting
+Pass a DataFrame with source and target columns to `sq.gr.ligrec(..., interactions=table)`. Leaving it unspecified now fails before the upstream default OmniPath lookup. [OmniPath](https://omnipathdb.org/) integrates sources with different terms: review the provider's actual rights and intended use. Never put credentials, private source URLs, or license keys into a shareable recipe. A private local file can be read without a recipe. For an authorized reusable table:
 
-- `No module named squidpy` usually means `python` ran outside this app; use
-  `taf-squidpy python ...`.
-- A dataset download or default ligand-receptor lookup fails under an offline
-  backend by design; stage the data and interactions before the run.
-- No `squidpy` executable is expected. Use the Python API.
-- For an interactive napari view, use `taf-spatialdata`; this app supplies
-  static plotting, not a GUI server.
-- Tiny synthetic validation cannot establish scientific correctness,
-  production-scale performance, or compatibility with every external store.
+```sh
+taf-squidpy squidpy-data pin-table --id my-panel --file interactions.tsv --url https://example.org/fixed-release/interactions.tsv --rights-file NOTICE.txt > panel.json
+```
 
-## Testing
+Replace the example URL with the real public, fixed origin. With the installation bind above, use `install --table-recipe panel.json --source-dir .` from the directory containing the file named `interactions.tsv`. For an explicitly authorized pinned online table use `--fetch` instead. The installed table is `/datasets/squidpy/table.my-panel/interactions.tsv`; use `pandas.read_csv(path, sep="\t")`. The helper verifies identity and transport, not the scientific meaning of a table.
 
-Four independent offline smoke paths cover exact package/provenance identity
-and Python help; a tiny spatial graph/statistics/SpatialLeiden workflow with
-H5AD and plot output; ligand-receptor permutations using a local interaction
-DataFrame rather than OmniPath; and TIFF loading, smoothing, watershed
-segmentation, PNG rendering, Zarr save, and reload. Dockerfile self-checks use
-only stable identity and lightweight image operations so QEMU builds are not
-gated by full plotting, ligand-receptor permutations, or JIT-heavy analysis.
+### Optional private example cache
 
-## License and Citation
+Prefer verified installation. To deliberately use the upstream example downloader in a **separate private cache**, choose a dataset you may obtain and use, create an empty directory you own with mode 0700, disable discovery, and pass the opt-in **into the container**. Choose one row; never use a prepared library for this writable cache.
 
-TAFFISH app packaging is Apache-2.0. Squidpy remains BSD-3-Clause. Cite:
+```sh
+CACHE="$HOME/.cache/squidpy-online"; mkdir -p "$CACHE" && chmod 0700 "$CACHE"
+export TAFFISH_SQUIDPY_DATASET_AUTO_MOUNT=0
+TAFFISH_CONTAINER_BACKEND=docker TAFFISH_DOCKER_RUN_ARGS="--user $(id -u):$(id -g) --env TAFFISH_SQUIDPY_ALLOW_NETWORK=1 -v '$CACHE:/squidpy-network:rw'" taf-squidpy python analysis.py
+TAFFISH_CONTAINER_BACKEND=podman TAFFISH_PODMAN_RUN_ARGS="--userns keep-id --user $(id -u):$(id -g) --env TAFFISH_SQUIDPY_ALLOW_NETWORK=1 -v '$CACHE:/squidpy-network:rw'" taf-squidpy python analysis.py
+TAFFISH_CONTAINER_BACKEND=apptainer TAFFISH_APPTAINER_RUN_ARGS="--env TAFFISH_SQUIDPY_ALLOW_NETWORK=1 --bind '$CACHE:/squidpy-network:rw'" taf-squidpy python analysis.py
+unset TAFFISH_SQUIDPY_DATASET_AUTO_MOUNT
+```
 
-Palla et al. “Squidpy: a scalable framework for spatial omics analysis.”
-*Nature Methods* 19, 171–178 (2022).
-[doi:10.1038/s41592-021-01358-2](https://doi.org/10.1038/s41592-021-01358-2),
-PMID 35102346.
+This opt-in changes example acquisition only. It is not an offline sandbox for arbitrary Python, a grant of dataset rights, or a way to enable implicit OmniPath calls. Consult site network policy for remote object stores. Use local files or a verified read-only installation for repeatable offline operation.
+
+## Packaging and attribution
+
+Image: `ghcr.io/taffish/squidpy:1.8.4-r1`, native Linux amd64/arm64. The official Squidpy wheel is unmodified. `cp-measure 0.2.0` requires centrosome, whose current official release caps Pillow below 12 ([upstream issue #136](https://github.com/CellProfiler/centrosome/issues/136)). This app builds the explicitly marked dependency `centrosome 1.3.4+taffish.1`: its metadata pins Pillow 13.0.0, its grayscale reader uses current byte APIs and the declared byte order, and it passes 8-bit L pixels to the floating-point fitter without changing their 0–255 values. Background fitting, normalization and all Squidpy numerical routines are unchanged. This is a downstream compatibility patch, not an official centrosome release. Both centrosome and mahotas are compiled for the target CPU.
+
+The final uncompressed image measures 1,293,892,003 bytes on amd64 and 1,340,197,687 on arm64 (about 4% more than 1.8.3-r1). The runtime keeps the libraries used by spatial, geospatial and image APIs, including llvmlite, PyArrow, Pyogrio, SciPy, imagecodecs and the new native extensions; the development compiler toolchain and download cache are not part of the image.
+
+Fixed sources, constraints, installed versions, patch and third-party notices are under `/opt/squidpy/share/doc/squidpy`. The multistage build leaves compilers outside the runtime; tested large test suites, development headers, static/debug archives and bytecode are pruned. Runtime-imported modules (including mahotas.tests) stay. Python wheels and Debian repositories remain external build inputs, not a permanent mirror. Numerical threads default to one. Plan RAM, scratch and output space for your image size and permutation count. Tiny offline checks demonstrate supported interfaces, not scientific or production-scale validity.
+
+Native validation covered Docker/Podman on Linux arm64 and Docker/Podman/Apptainer on x86-64 Linux, using the built wrapper, offline analyses and actual host bind mounts. The x86-64 site fixture was prepared once by container root and read offline by ordinary users on all three engines. The reviewed fluorescent crop was verified and loaded as 704 × 16,562; the rest of the catalog is not claimed individually validated. A separate private-cache download and checked offline reuse were also exercised. The 8-bit and 16-bit grayscale reader results were compared with the same pixels supplied as floating-point TIFFs.
+
+Packaging: Apache-2.0; Squidpy: BSD-3-Clause. Dataset terms are separate. Cite Palla et al., *Nature Methods* 19, 171–178 (2022), [doi:10.1038/s41592-021-01358-2](https://doi.org/10.1038/s41592-021-01358-2). See also the [Squidpy user guide](https://squidpy.readthedocs.io/en/stable/).

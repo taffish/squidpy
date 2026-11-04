@@ -1,6 +1,5 @@
-# Squidpy 1.8.3 with its complete official leiden extra.
-# Resolved on linux/arm64, then rebuilt and verified on linux/amd64 and
-# linux/arm64. Squidpy and docrep sources are pinned separately by URL/hash.
+# Squidpy 1.8.4 with its official leiden extra. This is a version constraint
+# set, not an archive of distribution bytes. See Dockerfile for source hashes.
 aiobotocore==3.9.0
 aiohappyeyeballs==2.7.1
 aiohttp==3.14.3
@@ -13,16 +12,19 @@ array-api-compat==1.15.0
 attrs==26.1.0
 botocore==1.43.56
 certifi==2026.7.22
+centrosome==1.3.4+taffish.1
 charset-normalizer==3.5.0
 click==8.4.2
 cloudpickle==3.1.2
 colorcet==3.2.1
 contourpy==1.3.3
+cp-measure==0.2.0
 cycler==0.12.1
 dask==2026.7.1
 dask-image==2026.5.0
 datashader==0.19.1
 Deprecated==1.3.1
+deprecation==2.1.0
 distributed==2026.7.1
 donfig==0.8.1.post1
 fast-array-utils==1.5
@@ -46,6 +48,7 @@ legacy-api-wrap==1.5
 leidenalg==0.11.0
 llvmlite==0.49.0
 locket==1.0.0
+mahotas==1.4.19
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
 matplotlib==3.11.1
@@ -60,6 +63,7 @@ narwhals==2.24.0
 natsort==8.4.0
 networkx==3.6.1
 numba==0.67.0
+numba-progress==1.2.0
 numcodecs==0.16.5
 numpy==2.5.2
 ome-zarr==0.18.0
@@ -71,7 +75,7 @@ param==2.4.1
 partd==1.4.2
 pathlib_abc==0.5.2
 patsy==1.0.2
-pillow==12.3.0
+pillow==13.0.0
 PIMS==0.6.0
 platformdirs==4.11.2
 pooch==1.9.0
@@ -99,7 +103,7 @@ scanpy==1.12.3
 scikit-image==0.26.0
 scikit-learn==1.9.0
 scipy==1.18.0
-scverse-misc==0.1.3
+scverse-misc==0.1.8
 seaborn==0.13.2
 session-info2==0.4.2
 shapely==2.1.2

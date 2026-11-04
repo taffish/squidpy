@@ -1,0 +1,5 @@
+.git
+target
+release.md
+**/__pycache__/
+**/.DS_Store

@@ -1,0 +1,4 @@
+#!/opt/squidpy/bin/python
+from squidpy_data import cli
+
+cli()

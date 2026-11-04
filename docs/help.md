@@ -1,81 +1,59 @@
-squidpy 1.8.3-r1
+squidpy 1.8.4-r1
 
-Purpose:
-  Analyze spatial molecular data with Squidpy graphs, statistics, microscopy
-  image processing, ligand-receptor methods, and static plotting.
-
-Usage:
-  taf-squidpy -- --help
+Quick start:
   taf-squidpy python analysis.py
-  taf-squidpy python -c '"import squidpy as sq; print(sq.__version__)"'
-  taf-squidpy python -m pip list
-
-Important command behavior:
-  Squidpy 1.8.3 has no squidpy console executable. The default command is the
-  Python 3.12 interpreter, and analyses use the Squidpy Python API.
-  Use the explicit "python" command for scripts and one-line expressions.
-
-Common workflow:
-  1. Prepare a Python script and local AnnData, image, or SpatialData input.
-  2. Store spatial coordinates in adata.obsm["spatial"] when required.
-  3. Call squidpy.gr, squidpy.im, squidpy.pl, or squidpy.read functions.
-  4. Choose output paths in the script, then run:
-       taf-squidpy python analysis.py
-  5. Inspect the H5AD, Zarr, table, image, plot, or log outputs you selected.
-
-Packaged runtime:
-  python             Default Python 3.12 interpreter.
-  squidpy 1.8.3      Spatial graph, image, statistics, and plotting APIs.
-  scanpy 1.12.3      AnnData preprocessing and single-cell analysis.
-  spatialdata 0.8.0  Multimodal spatial data model and Zarr support.
-  spatialleiden      Official Squidpy leiden extra; version 0.4.0.
-
-Typical inputs:
-  analysis.py        Python program using the packaged APIs.
-  *.h5ad             AnnData matrix, annotations, and spatial coordinates.
-  *.tif or *.tiff    Microscopy image accepted by ImageContainer.
-  *.zarr             Local Zarr or SpatialData store.
-
-Key outputs:
-  *.h5ad or *.zarr   Modified analysis objects written by your script.
-  *.tsv or *.csv     Statistics and graph summaries selected by your script.
-  *.png/*.svg/*.pdf  Static Matplotlib plots using the headless Agg backend.
-  Output locations and overwrite behavior are controlled by your script.
-
-Paths with spaces:
-  Preserve literal quotes through automatic command mode:
   taf-squidpy python "'scripts/spatial analysis.py'"
+  taf-squidpy python -c '"import squidpy as sq; print(sq.__version__)"'
+  taf-squidpy -- --help
+  The default command is Python, not a squidpy executable. Pass literal inner
+  quotes around paths containing spaces in automatic command mode.
 
-Networking and offline use:
-  squidpy.datasets downloads official examples on first use.
-  sq.gr.ligrec fetches OmniPath data when no interaction table is supplied.
-  For an offline run, stage inputs locally and pass a local interaction
-  DataFrame. Remote object stores need network access and user credentials.
+Inputs and outputs:
+  Read local H5AD, TIFF or SpatialData/Zarr files from your working directory.
+  Graph methods usually need adata.obsm["spatial"]; image feature extraction
+  needs aligned images and labels. Your script chooses output paths for H5AD,
+  Zarr, tables or plots; allow writable scratch space for large images.
+  Save PNG/SVG/PDF via Matplotlib. To explore SpatialData interactively,
+  use the separate taf-spatialdata spatialdata-gui command.
 
-Interactive visualization:
-  Squidpy removed its original interactive module upstream. This app provides
-  static plots, not napari, Qt, noVNC, or a browser service. Use the separate
-  taf-spatialdata spatialdata-gui command for napari-spatialdata viewing.
+Examples and interaction tables:
+  Working with project files does not require a dataset library.
+  taf-squidpy squidpy-data catalog
+  taf-squidpy squidpy-data install --dataset visium_fluo_adata_crop --dry-run
+  Choose individual datasets. Preview size, source, rights and destination;
+  allow for the private download cache, installed copy and free-space reserve.
 
-Platform and resources:
-  Native linux/amd64 and linux/arm64 images are provided. No GPU/CUDA runtime,
-  Jupyter server, datasets, reference atlas, or credentials are included.
-  Large images, permutations, and Dask jobs may need substantial RAM, CPU,
-  temporary disk, and output storage. Numerical threads default to one.
-  Docker is verified; Podman and Apptainer follow the generic wrapper contract
-  but remain backend-specific validation boundaries for this release.
+Prepare once (run one backend command):
+  LIB="$HOME/.local/share/taffish/datasets/squidpy"
+  mkdir -p "$LIB" && chmod 0755 "$LIB"
+  export TAFFISH_SQUIDPY_DATASET_AUTO_MOUNT=0
+  TAFFISH_CONTAINER_BACKEND=docker TAFFISH_DOCKER_RUN_ARGS="--user $(id -u):$(id -g) -v '$LIB:/dataset-install:rw'" taf-squidpy squidpy-data install --dataset visium_fluo_adata_crop --fetch
+  TAFFISH_CONTAINER_BACKEND=podman TAFFISH_PODMAN_RUN_ARGS="--userns keep-id --user $(id -u):$(id -g) -v '$LIB:/dataset-install:rw'" taf-squidpy squidpy-data install --dataset visium_fluo_adata_crop --fetch
+  TAFFISH_CONTAINER_BACKEND=apptainer TAFFISH_APPTAINER_RUN_ARGS="--bind '$LIB:/dataset-install:rw'" taf-squidpy squidpy-data install --dataset visium_fluo_adata_crop --fetch
+  unset TAFFISH_SQUIDPY_DATASET_AUTO_MOUNT
+  Use a dedicated directory you own. An administrator can instead prepare
+  /usr/local/share/taffish/datasets/squidpy once for ordinary users.
+  Repeat the same install after an interruption; do not remove the lock,
+  recovery files or completed members. Never overwrite a conflicting snapshot.
 
-Boundaries:
-  Tiny integration checks do not establish scientific correctness or
-  production-scale performance. API options and input schemas remain defined
-  by the upstream Squidpy documentation.
+Use offline:
+  taf-squidpy squidpy-data verify
+  taf-squidpy python -c '"import squidpy as sq; print(sq.datasets.visium_fluo_adata_crop().shape)"'
+  Discovery mounts the first selected library at /datasets/squidpy read-only:
+  explicit TAFFISH_SQUIDPY_DATASET_PATH, then the personal path above, then
+  /usr/local/share/taffish/datasets/squidpy and /opt/taffish/datasets/squidpy.
+  A bad selected library fails; no other library is silently substituted.
+  For a path with spaces, set TAFFISH_SQUIDPY_DATASET_AUTO_MOUNT=0 and use
+  the same backend bind syntax above with '$LIB:/datasets/squidpy:ro'.
+  An absent dataset fails without downloading. For names outside the reviewed
+  fetch list, supply --source-dir and --rights-file with authorized local files.
+  For sq.gr.ligrec, pass interactions= with source/target columns in a local
+  DataFrame. No live OmniPath table is selected for you. For a reusable table:
+  taf-squidpy squidpy-data pin-table --help
+  See README for table recipes and explicitly enabled private online caches.
 
-Detailed documentation:
+Help:
+  taf-squidpy --help                 Installed usage help
+  taf-squidpy --version              Wrapper version
+  taf-squidpy squidpy-data --help    Resource helper commands
   https://github.com/taffish/squidpy
-  https://squidpy.readthedocs.io/en/stable/
-
-Wrapper options:
-  taf-squidpy --help       Show this TAFFISH help.
-  taf-squidpy --version    Show TAFFISH wrapper version.
-  taf-squidpy --compile    Print generated shell code.
-  taf-squidpy -- --help    Pass --help to the default Python interpreter.

@@ -1,6 +1,0 @@
-{
-  "artifact": "taf-squidpy-v1.8.3-r1",
-  "schema": "taffish.build/v1",
-  "source_sha256": "efca256282f3f852aed561de5bec3c15554dc6e92ca0b40c749fd177cb883a2b",
-  "wrapper_sha256": "cb0a63a2cf49f71232fa98ce961a715bec8c8299c02eae4592f9207421a1b4d3"
-}
